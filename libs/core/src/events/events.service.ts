@@ -62,7 +62,7 @@ export class EventsService {
     }
 
     try {
-      const tickets = this.prismaService.$transaction(
+      const tickets = await this.prismaService.$transaction(
         async (prisma) => {
           await prisma.reservationHistory.createMany({
             data: spots.map((spot) => ({
@@ -84,7 +84,7 @@ export class EventsService {
             },
           });
 
-          await Promise.all(
+          const tickets = await Promise.all(
             spots.map((spot) =>
               prisma.ticket.create({
                 data: {
@@ -92,13 +92,19 @@ export class EventsService {
                   ticketKind: dto.ticket_kind,
                   email: dto.email,
                 },
+                include: {
+                  Spot: true,
+                },
               }),
             ),
           );
+
           return tickets;
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
       );
+
+      return tickets;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         switch (e.code) {
